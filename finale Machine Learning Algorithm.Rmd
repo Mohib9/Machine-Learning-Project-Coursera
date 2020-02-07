@@ -1,0 +1,131 @@
+---
+title: "Machine Learning Project"
+author: "Mohib"
+date: "2/3/2020"
+output: html_document
+---
+
+## Executive Summary:
+
+The objective of this project is to predict the manner in which a person performs a certain excercise. In order for us to evaluate this, we have been providied with 2 data sets one for training and the other to test our selected models.
+
+After the requisite actions on the data by removing any redundant variables and modeling two of the most widely used models, the final model chosen which predicts the best is the Random Forest with an accuracy of 99.57% compared to an accuracy of 96.59% by the Gradient Boosting Model.
+
+## Exploring the Data:
+
+Both the data sets were initially composed of 160 variables with thousands of observations. The main difference between the two data sets was the "classe" variable in training compared to "problem_id" in the test dataset.
+
+Lets first load all the required packages and then have a broad outlook  of the training set:
+
+```{r, results = 'hide'}
+library(caret)
+library(randomForest)
+library(foreach)
+library(e1071)
+library(kernlab)
+```
+
+```{r}
+##Loading the training and test data sets
+training <- read.csv("F:/DS/Course 8/pml-training.csv")
+
+testing <- read.csv("F:/DS/Course 8/pml-testing.csv")
+
+##Getting a broad idea of the data
+str(training, list.len=ncol(training))
+```
+
+We can see that a lot of variables have NAs and blank spaces, so lets remove them. For that, first lets look at the classes of these respective variables:
+
+```{r}
+##Identifying the variable class for further action
+split(names(training),sapply(training, function(x) paste(class(x), collapse=" ")))
+ 
+```
+
+```{r}
+##Removing the NA columns and vacant columns
+training <- training[ , apply(training, 2, function(x) !any(is.na(x)))]
+
+classe <- training[ , "classe"]
+
+training <- training[, sapply(training, class) != "factor"]
+
+training <- cbind(classe, training)
+
+##Removing reduandant variables like time and numbering
+training <- training[ , -(2:5)]
+
+rm(classe)
+```
+
+Now following the same technique to clean up the testing data set:
+
+```{r}
+##Following the same procedure to clean the test dataset as well
+testing <- testing[ , apply(testing, 2, function(x) !any(is.na(x)))]
+testing <- testing[, sapply(testing, class) != "factor"]
+
+testing <- testing[ , -(1:4)]
+```
+
+## Model Selection:
+
+Now in order to train a model, we'll be dividing the training data set into further 2 categories one for training and the other for testing our model.
+
+```{r}
+##Making a training and test set further to build model
+set.seed(5)
+inTrainsmall <-createDataPartition(training$classe, p = .75, list=FALSE)
+training_1 <- training[inTrainsmall,]
+testing_1 <- training[-inTrainsmall,]
+```
+
+Now, lets define the manner in which we want our algorithm to run by dividing the data into 10 equal parts and then use 9 parts for model training while the remaining one for testing.
+
+```{r}
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+```
+
+We will be making two of the most widely ensemble methods namely Random Forest and Gradient Boosting for our predictions. Let us first make an Random Forest model:
+
+```{r}
+set.seed(5)
+model_rf <- train(classe ~ ., method ="rf", data =training_1, trControl=control)
+```
+
+Now, lets use Gradient Boosting:
+
+```{r, results = 'hide'}
+set.seed(5)
+model_gbm <- train(classe ~ . , method = "gbm", data = training_1,  trControl=control)
+```
+
+Using the models on the testing_1 data set of our broad training data set:
+
+Random Forest
+```{r}
+predict_rf <- predict(model_rf , testing_1)
+confusionMatrix(predict_rf, testing_1$classe)
+```
+
+Gradient Boosting
+
+```{r }
+predict_gbm <- predict(model_gbm, testing_1)
+confusionMatrix(predict_gbm, testing_1$classe)
+```
+
+## Result:
+
+We can see from the Confusion Matrix of both that Random Forest Model has an accurary of 99.57% with an out of sample error of 0.43% while the Gradient Boosting Model has an accuracy of 96.59% with an out of sample error of 3.41%. Therefore, the better model would be the Random Forest and that will be our chosen model for predicting the testing dataset.
+
+However, it is important to note here that the time taken by the Random Forest is 53 minutes compared to 22 minutes by the Gradient Boosting which is more than double. Hence, to catter for the scalability, we would be better off selecting the Gradient Boosting Model but not in this scenario.
+
+Also, the difference in accuracy is quite small therefore both the models are likely to give the same results for any prediction. Let's check out the random forest on the testing dataset( Quiz answers ):
+
+```{r}
+predict(model_rf , testing)
+```
+
+
